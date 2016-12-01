@@ -23,6 +23,7 @@ SOCK = None
 PACKETS = []
 NUMBER_OF_PACKETS = 0
 NAMES = []
+VERBOSE = False
 
 # endregion
 
@@ -148,8 +149,11 @@ def get_mac(iface, ip):
         alive, dead = srp(Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip), iface=iface, timeout=10, verbose=0)
         return str(alive[0][1].hwsrc)
     except IndexError:
-        print " This IP: " + ip + " not on your subnet."
-        print " Dst MAC address is MAC address your gateway on interface: " + iface + "."
+
+        if VERBOSE:
+            print " This IP: " + ip + " not on your subnet."
+            print " Dst MAC address is MAC address your gateway on interface: " + iface + "."
+
         try:
             alive, dead = srp(Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=gw_ip), iface=iface, timeout=10, verbose=0)
             return str(alive[0][1].hwsrc)
@@ -177,6 +181,7 @@ if __name__ == "__main__":
     parser.add_argument('-h', '--help', help='Print help', action='store_true')
     parser.add_argument('-m', '--notspoofmac', help='Don\'t spoof MAC address', action='store_true')
     parser.add_argument('-i', '--notspoofip', help='Don\'t spoof IP address', action='store_true')
+    parser.add_argument('-v', '--verbose', help='Verbose mode', action='store_true')
     parser.add_argument('-r', '--realname', help='Resolving real domain name', action='store_true')
     parser.add_argument('-t', '--threads', help='Number of threads (default: 100)', default=100)
     parser.add_argument('-p', '--packets', help='Number of packets in one iteration (default: 500000)', default=500000)
@@ -187,6 +192,9 @@ if __name__ == "__main__":
     parser.add_argument('-P', '--dstport', help='Set destination port (default: 53)', default=53)
     parser.add_argument('-l', '--pathtodomainlist', help='Set path to file with domain list', default=None)
     args = parser.parse_args()
+
+    if args.verbose:
+        VERBOSE = True
 
     if args.help:
         parser.print_help()
@@ -244,15 +252,16 @@ if __name__ == "__main__":
 
     current_interface = ipaddress.IPv4Interface(unicode(current_ip + "/" + current_mask))
 
-    print ""
-    print tabulate([
-        ["Interface", current_network_interface],
-        ["IP", current_ip],
-        ["Mask", current_mask],
-        ["Network", str(current_interface.network)],
-        ["Mac", current_mac_address]
-    ], tablefmt='grid')
-    print ""
+    if VERBOSE:
+        print ""
+        print tabulate([
+            ["Interface", current_network_interface],
+            ["IP", current_ip],
+            ["Mask", current_mask],
+            ["Network", str(current_interface.network)],
+            ["Mac", current_mac_address]
+        ], tablefmt='grid')
+        print ""
 
     if args.netspoofed is None:
         current_network = ipaddress.ip_network(current_interface.network)
@@ -289,15 +298,16 @@ if __name__ == "__main__":
         NS_list[NAME]["MAC"] = get_mac(current_network_interface, NS_list[NAME]["IP"])
         NS_list[NAME]["PORT"] = PORT
 
-    print ""
-    for NS in NS_list.keys():
-        print tabulate([
-            ["Name", NS_list[NS]["NAME"]],
-            ["IP", NS_list[NS]["IP"]],
-            ["MAC", NS_list[NS]["MAC"]],
-            ["PORT", NS_list[NS]["PORT"]]
-        ], tablefmt='grid')
-    print ""
+    if VERBOSE:
+        print ""
+        for NS in NS_list.keys():
+            print tabulate([
+                ["Name", NS_list[NS]["NAME"]],
+                ["IP", NS_list[NS]["IP"]],
+                ["MAC", NS_list[NS]["MAC"]],
+                ["PORT", NS_list[NS]["PORT"]]
+            ], tablefmt='grid')
+        print ""
 
     count = 0
     count_max = int(args.packets)
