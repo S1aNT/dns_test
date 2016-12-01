@@ -11,6 +11,7 @@ import datetime
 import os
 import argparse
 import array
+import platform
 
 from tabulate import tabulate
 from scapy.all import srp, Ether, ARP, conf
@@ -163,6 +164,10 @@ def get_mac(iface, ip):
 
 
 if __name__ == "__main__":
+
+    if platform.system() != "Linux":
+        print "This script can run only in Linux platform!"
+        sys.exit(1)
 
     if os.getuid() != 0:
         print "Only root can run this script!"
