@@ -1,2 +1,1 @@
-# dns_test
-This project is designed to performance test dns servers
+# Performance test DNS servers
