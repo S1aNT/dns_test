@@ -269,10 +269,19 @@ if __name__ == "__main__":
         all_hosts.pop(0)
         all_hosts.pop(len(all_hosts) - 1)
     else:
-        spoofed_network = ipaddress.ip_network(unicode(str(args.netspoofed)))
-        all_hosts = list(spoofed_network.hosts())
+        if args.netspoofed[len(args.netspoofed)-2:] != "32":
+            spoofed_network = ipaddress.ip_network(unicode(str(args.netspoofed)))
+            all_hosts = list(spoofed_network.hosts())
+        else:
+            all_hosts = [str(args.netspoofed[:-3])]
 
-    print "Spoofing IP: " + str(all_hosts[0]) + " ... " + str(all_hosts[len(all_hosts) - 1])
+    if len(all_hosts) > 1:
+        print "Spoofing IP: " + str(all_hosts[0]) + " ... " + str(all_hosts[len(all_hosts) - 1])
+    elif len(all_hosts) == 1:
+        print "Spoofing IP: " + str(all_hosts[0])
+    else:
+        print "Can't make spoofed IP list!"
+        sys.exit(1)
 
     print "Resolving DNS Servers..."
 
@@ -344,7 +353,10 @@ if __name__ == "__main__":
             if args.notspoofip:
                 SRC_IP = current_ip
             else:
-                SRC_IP = str(random.choice(all_hosts))
+                if len(all_hosts) > 1:
+                    SRC_IP = str(random.choice(all_hosts))
+                elif len(all_hosts) == 1:
+                    SRC_IP = str(all_hosts[0])
 
             if args.notspoofmac:
                 SRC_MAC = current_mac_address
