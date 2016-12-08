@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+# region Import
+
 import socket
 import struct
 import sys
@@ -16,6 +18,8 @@ import platform
 from tabulate import tabulate
 from scapy.all import srp, Ether, ARP, conf
 from tm import ThreadManager
+
+#endregion
 
 # region Global variables
 
@@ -95,8 +99,8 @@ def make_dns_name(name):
     name_list = name.split(".")
     result_name = ""
     for part_of_name in name_list:
-        if len(part_of_name) > 256:
-            print "Len of subdomain: " + part_of_name + " more than 256"
+        if len(part_of_name) > 255:
+            print "Len of subdomain: " + part_of_name + " more than 255"
             sys.exit(1)
         else:
             result_name += struct.pack("!" "B" "%ds" % (len(part_of_name)), len(part_of_name), part_of_name)
@@ -166,7 +170,6 @@ def get_mac(iface, ip):
 
 # endregion
 
-
 if __name__ == "__main__":
 
     if platform.system() != "Linux":
@@ -215,11 +218,15 @@ if __name__ == "__main__":
 
     if args.pathtodomainlist is not None:
         print "Create your DNS name list..."
-        with open(args.pathtodomainlist, "r") as domain_list:
-            for domain_name in domain_list:
-                NAMES.append(domain_name[:-1])
-        print " List of domains len: " + str(len(NAMES))
-        print " List of domains created: " + NAMES[0] + " ... " + NAMES[len(NAMES) - 1]
+        try:
+            with open(args.pathtodomainlist, "r") as domain_list:
+                for domain_name in domain_list:
+                    NAMES.append(domain_name[:-1])
+            print " List of domains len: " + str(len(NAMES))
+            print " List of domains created: " + NAMES[0] + " ... " + NAMES[len(NAMES) - 1]
+        except:
+            print "Can not open file: " + str(args.pathtodomainlist)
+            sys.exit(1)
 
     netiface_index = 1
     current_netifaces = netifaces.interfaces()
@@ -263,25 +270,26 @@ if __name__ == "__main__":
         ], tablefmt='grid')
         print ""
 
-    if args.netspoofed is None:
-        current_network = ipaddress.ip_network(current_interface.network)
-        all_hosts = list(current_network.hosts())
-        all_hosts.pop(0)
-        all_hosts.pop(len(all_hosts) - 1)
-    else:
-        if args.netspoofed[len(args.netspoofed)-2:] != "32":
-            spoofed_network = ipaddress.ip_network(unicode(str(args.netspoofed)))
-            all_hosts = list(spoofed_network.hosts())
+    if not args.notspoofip:
+        if args.netspoofed is None:
+            current_network = ipaddress.ip_network(current_interface.network)
+            all_hosts = list(current_network.hosts())
+            all_hosts.pop(0)
+            all_hosts.pop(len(all_hosts) - 1)
         else:
-            all_hosts = [str(args.netspoofed[:-3])]
+            if args.netspoofed[len(args.netspoofed)-2:] != "32":
+                spoofed_network = ipaddress.ip_network(unicode(str(args.netspoofed)))
+                all_hosts = list(spoofed_network.hosts())
+            else:
+                all_hosts = [str(args.netspoofed[:-3])]
 
-    if len(all_hosts) > 1:
-        print "Spoofing IP: " + str(all_hosts[0]) + " ... " + str(all_hosts[len(all_hosts) - 1])
-    elif len(all_hosts) == 1:
-        print "Spoofing IP: " + str(all_hosts[0])
-    else:
-        print "Can't make spoofed IP list!"
-        sys.exit(1)
+        if len(all_hosts) > 1:
+            print "Spoofing IP: " + str(all_hosts[0]) + " ... " + str(all_hosts[len(all_hosts) - 1])
+        elif len(all_hosts) == 1:
+            print "Spoofing IP: " + str(all_hosts[0])
+        else:
+            print "Can't make spoofed IP list!"
+            sys.exit(1)
 
     print "Resolving DNS Servers..."
 
@@ -293,18 +301,33 @@ if __name__ == "__main__":
     NAME_ns_list = NAME_ns_str.split(",")               # make list for ns server names
     NS_list = {}
 
-    PORT = int(args.dstport)
+    try:
+        PORT = int(args.dstport)
+    except:
+        print "Bad dst port!"
+        sys.exit(1)
+
+    if any([PORT < 1, PORT > 65535]):
+        print "Dst port is not within range 1 - 65535"
+        sys.exit(1)
 
     for NAME in NAME_ns_list:
         NAME += DOMAIN
         NS_list[NAME] = {}
         NS_list[NAME]["NAME"] = NAME
+
         try:
             NS_list[NAME]["IP"] = str(socket.gethostbyname(NAME))
         except:
-            print "Fail to resolving DNS Servers: " + NAME
+            print "Fail to resolving DNS Server: " + NAME
             sys.exit(1)
-        NS_list[NAME]["MAC"] = get_mac(current_network_interface, NS_list[NAME]["IP"])
+
+        try:
+            NS_list[NAME]["MAC"] = get_mac(current_network_interface, NS_list[NAME]["IP"])
+        except:
+            print "Fail to get MAC address for DNS Server: " + NAME
+            sys.exit(1)
+
         NS_list[NAME]["PORT"] = PORT
 
     if VERBOSE:
@@ -357,6 +380,9 @@ if __name__ == "__main__":
                     SRC_IP = str(random.choice(all_hosts))
                 elif len(all_hosts) == 1:
                     SRC_IP = str(all_hosts[0])
+                else:
+                    print "Bad spoofed network!"
+                    sys.exit(1)
 
             if args.notspoofmac:
                 SRC_MAC = current_mac_address
@@ -388,7 +414,7 @@ if __name__ == "__main__":
 
         if count > count_percent:
             sys.stdout.flush()
-            sys.stdout.write(" Complete: " + str(index_percent + 1) + "%        \r")
+            sys.stdout.write(" Complete: " + str(index_percent + 1) + "%   \r")
             index_percent += 1
             count_percent = (count_max / 100) * index_percent
 
