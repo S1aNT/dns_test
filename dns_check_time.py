@@ -6,7 +6,6 @@ import datetime
 import time
 import socket
 import argparse
-from tabulate import tabulate
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(add_help=False)
@@ -14,7 +13,10 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--domain', help='Domain name (example: test.com)', default="test.com")
     parser.add_argument('-s', '--nsservers', help='NS servers (example: "ns1,ns2")', default="ns1,ns2")
     parser.add_argument('-q', '--query', help='DNS query (example: query.test.com)', default=None)
-    parser.add_argument('-t', '--timeout', help='Set nslookup timeout (default: 2)', default=2)
+    parser.add_argument('-t', '--lookuptimeout', help='Set nslookup timeout (default: 2)', default=2)
+    parser.add_argument('-i', '--sleep', help='Set sleep time after nslookup', default=1)
+    parser.add_argument('-w', '--write', help='Set file path to write', default=None)
+
     args = parser.parse_args()
 
     if len(sys.argv) <= 2:
@@ -49,22 +51,37 @@ if __name__ == "__main__":
             sys.exit(1)
 
     print ""
-    print tabulate([["Domain", DOMAIN], ["Query", QUERY]], tablefmt='grid')
+    print "Domain: " + str(DOMAIN) + " | Query: " + str(QUERY)
     for NS in NS_list.keys():
-        print tabulate([[NS_list[NS]["NAME"], NS_list[NS]["IP"]]], tablefmt='grid')
+        print "NS_Name: " + NS_list[NS]["NAME"] + " | NS_IP: " + NS_list[NS]["IP"]
     print ""
 
+    if args.write is not None:
+        with open(args.write, 'a') as log:
+            log.write("Domain: " + str(DOMAIN) + " | Query: " + str(QUERY) + "\n")
+            for NS in NS_list.keys():
+                log.write("NS_Name: " + NS_list[NS]["NAME"] + " | NS_IP: " + NS_list[NS]["IP"] + "\n")
+
     print "\r\nStart check: " + str(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S") + "\r\n")
+    if args.write is not None:
+        with open(args.write, 'a') as log:
+            log.write("\r\nStart check: " + str(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S") + "\r\n"))
     try:
         while True:
             for NS in NS_list.keys():
                 now = str(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 start = datetime.datetime.now()
-                os.system("nslookup -timeout=" + str(int(args.timeout)) + " " + QUERY + " "
+                os.system("nslookup -timeout=" + str(int(args.lookuptimeout)) + " " + QUERY + " "
                           + NS_list[NS]["IP"] + " >/dev/null 2>/dev/null")
                 speed = str((datetime.datetime.now() - start).total_seconds())[:4]
-                print str(tabulate([[now, NS_list[NS]["NAME"], speed]], tablefmt='grid'))
-                time.sleep(1)
+                print str(now) + " | " + str(NS_list[NS]["NAME"]) + " | " + str(speed)
+                if args.write is not None:
+                    with open(args.write, 'a') as log:
+                        log.write(str(now) + " | " + str(NS_list[NS]["NAME"]) + " | " + str(speed) + "\n")
+                time.sleep(int(args.sleep))
     except:
         print "\r\nStop check: " + str(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S") + "\r\n")
+        if args.write is not None:
+            with open(args.write, 'a') as log:
+                log.write("\r\nStop check: " + str(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S") + "\r\n"))
         sys.exit(1)
