@@ -1,3 +1,10 @@
+# Utils
+utils/.idea
+utils/cmake-build-debug
+
+# Temp files
+packets.txt
+
 # Pycharm IDE files
 .idea/
 

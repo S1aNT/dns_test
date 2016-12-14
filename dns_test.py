@@ -345,12 +345,6 @@ if __name__ == "__main__":
     count = 0
     count_max = int(args.packets)
 
-    min_number_domains = 2
-    max_number_domains = 5
-
-    min_len_domain = 2
-    max_len_domain = 5
-
     index_percent = 0
     count_percent = 0
 
@@ -399,13 +393,8 @@ if __name__ == "__main__":
                 NAME = random.choice(NAMES)
             else:
                 NAME = ""
-                NAME_NUM = random.randint(min_number_domains, max_number_domains)
-                NAME_INDEX = 1
-
-                while NAME_INDEX <= NAME_NUM:
-                    NAME += random_name(random.randint(min_len_domain, max_len_domain)) + "."
-                    NAME_INDEX += 1
-                NAME = NAME[:-1]
+                NAME += random_name(4) + "."
+                NAME += random_name(3)
                 NAME += DOMAIN
 
             PACKET = make_a_dns_packet(SRC, DST, TID, NAME)
@@ -436,7 +425,8 @@ if __name__ == "__main__":
             print " Write raw packets to file: packets.txt ..."
             with open("packets.txt", "a") as packet_file:
                 for PACKET in PACKETS:
-                    packet_file.write(PACKET + "\r\n")
+                    print "".join("{:02x}".format(ord(c)) for c in PACKET)
+                    packet_file.write(PACKET)
             print " All packets is writed."
 
     except:
