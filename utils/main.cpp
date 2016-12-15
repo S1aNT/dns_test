@@ -11,13 +11,12 @@
 #include <netinet/ether.h>
 
 #define ADDRESS	0x00
-#define PACKET_LEN 80
 
-bool SendRawPackets(char InterfaceName[],
-                    uint64_t & NumberOfPacketStrings,
-                    uint64_t & PacketLength,
-                    std::vector<std::string> & VectorOfPacketStrings)
-{
+bool SendRawPackets(const char InterfaceName[],
+                    const uint64_t & NumberOfPacketStrings,
+                    const unsigned int & PacketLength,
+                    const std::vector<std::string> & VectorOfPacketStrings)  {
+
     struct sockaddr_ll SocketAddress;
 
     struct ifreq InterfaceIndex;
@@ -49,11 +48,8 @@ bool SendRawPackets(char InterfaceName[],
         SocketAddress.sll_addr[IndexOfAddress] = ADDRESS;
     }
 
-    const char * PacketString;
-
     for (int IndexOfPacketString = 0; IndexOfPacketString < NumberOfPacketStrings; ++IndexOfPacketString) {
-        PacketString = VectorOfPacketStrings[IndexOfPacketString].c_str();
-        if (sendto(Socket, PacketString, PacketLength, 0, (struct sockaddr*)&SocketAddress, sizeof(struct sockaddr_ll)) < 0) {
+        if (sendto(Socket, VectorOfPacketStrings[IndexOfPacketString].c_str(), PacketLength, 0, (struct sockaddr*)&SocketAddress, sizeof(struct sockaddr_ll)) < 0) {
             std::cerr << "[ERROR] Can not send packet." << std::endl;
             return false;
         }
@@ -63,45 +59,58 @@ bool SendRawPackets(char InterfaceName[],
 }
 
 int main(int argc, char *argv[]) {
-    uint64_t NumberOfPacketStrings = 0;
-    uint64_t PacketLength = PACKET_LEN;
-    char InterfaceName[IFNAMSIZ];
 
-    if (argc >= 3) {
+    char InterfaceName[IFNAMSIZ];
+    std::string FileNameWithPackets = "packets.txt";
+    unsigned int PacketLength = 0;
+    uint64_t NumberOfPacketStrings = 0;
+
+    if (argc == 5) {
         std::istringstream InterfaceNameStream(argv[1]);
         if (!(InterfaceNameStream >> InterfaceName)) {
             std::cerr << "[ERROR] First argument is network interface name." << std::endl;
             exit(1);
         }
 
-        std::istringstream NumberOfPacketStringStream(argv[2]);
-        if (!(NumberOfPacketStringStream >> NumberOfPacketStrings)) {
-            std::cerr << "[ERROR] Second argument is number of packets." << std::endl;
+        std::istringstream FileNameWithPacketsStream(argv[2]);
+        if (!(FileNameWithPacketsStream >> FileNameWithPackets)) {
+            std::cerr << "[ERROR] Second argument is file name with raw packets." << std::endl;
             exit(1);
         }
+
+        std::istringstream PacketLengthStream(argv[3]);
+        if (!(PacketLengthStream >> PacketLength)) {
+            std::cerr << "[ERROR] Third argument is packet length." << std::endl;
+            exit(1);
+        }
+
+        std::istringstream NumberOfPacketStringStream(argv[4]);
+        if (!(NumberOfPacketStringStream >> NumberOfPacketStrings)) {
+            std::cerr << "[ERROR] Fourth argument is number of packets." << std::endl;
+            exit(1);
+        }
+    } else {
+        std::cout << "[INFO] Usage: " << argv[0] << " \"<iface>\" \"<filename_with_raw_packets>\" "
+                  << " <packet_len> <number_of_packets>" << std::endl;
     }
 
-    std::string FileNameWithPackets = "packets.txt";
     std::vector<std::string> VectorOfPacketStrings;
 
     try {
         std::ifstream Packets(FileNameWithPackets, std::ios::in | std::ios::binary);
 
         for (int IndexOfPacketsLine = 0; IndexOfPacketsLine < NumberOfPacketStrings; ++IndexOfPacketsLine) {
-            char PacketString[PacketLength];
-
+            std::string PacketString = std::string(PacketLength, ' ');
             for (int IndexOfByteInPacket = 0; IndexOfByteInPacket < PacketLength; ++IndexOfByteInPacket) {
                 PacketString[IndexOfByteInPacket] = (char) Packets.get();
             }
-
             VectorOfPacketStrings.push_back(PacketString);
         }
 
         SendRawPackets(InterfaceName, NumberOfPacketStrings, PacketLength, VectorOfPacketStrings);
-
     } catch (const std::exception &Exc) {
         std::cerr << "[ERROR] Exception: " << Exc.what() << std::endl;
         exit(1);
     }
-
+    return 0;
 }
